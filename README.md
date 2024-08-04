@@ -68,7 +68,9 @@ Far more implementation and error handling is required.
 
 
 ## Known Issues
+None 
 
+## Fixed Issues
 Fixed the issue where Mosquitto used to disconnect because the subscription was malformed.
 This was caused by the fact that the QOS in the MQTT fixed header of a subscribe message must be
 ``MqttQoS.AT_LEAST_ONCE`` while the actual desired QOS is specified in the ``MqttTopicSubscription`` object.
