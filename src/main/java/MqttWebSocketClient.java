@@ -20,6 +20,17 @@ public final class MqttWebSocketClient {
     final String subprotocol ="mqtt";
     final int keepAlive=60;
 
+    private final String TAG = "MqttWebSocketClient";
+    private final boolean enableLogging=true;
+
+    private SimpleLogger logger = new SimpleLogger();
+
+    private void log(String data){
+        if (enableLogging){
+            logger.log(data);
+        }
+    }
+
 
     public MqttWebSocketClient(){
 
@@ -38,7 +49,7 @@ public final class MqttWebSocketClient {
 
         String parseURL =  parseURL(URL);
 
-        System.out.println("ParsedURL=" + parseURL );
+        log("ParsedURL=" + parseURL );
 
         try {
             uri = new URI(parseURL);
@@ -55,10 +66,10 @@ public final class MqttWebSocketClient {
                 if (scheme.startsWith("ws")) {
                     port = scheme.equals("wss") ? 8084 : 8083; // https://www.emqx.com/en/blog/connect-to-mqtt-broker-with-websocket?utm_source=pocket_saves
                 }
-                System.out.println("URL=" + parseURL + ":" + port);
+                log("URL=" + parseURL + ":" + port);
             } else {
                 port = uri.getPort();
-                System.out.println("URL=" + parseURL );
+                log("URL=" + parseURL );
             }
 
 
@@ -96,7 +107,7 @@ public final class MqttWebSocketClient {
                         }
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                            System.out.println("Exception caught initializing channel");
+                            log("Exception caught initializing channel");
                             cause.printStackTrace();
                         }
                     });

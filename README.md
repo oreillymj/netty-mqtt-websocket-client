@@ -9,7 +9,7 @@ SSL connections are currently unsupported.
 It is simply provided as a starting point for more complex implementations as I couldn't find amy other working examples.
 
 ## Building/Requirements
-The code is intended to be simply built in Intellij. I haven't used Maven or Gradle.
+The code is intended to be simply built/run in Intellij. I've also add a Maven POM.xml.
 The code assumes the following files are within a 'libs' folder.
 Not all maybe required, but it will ensure the code builds.
 
@@ -21,23 +21,23 @@ guava-31.1-jre.jar
 log4j-1.2-api-2.17.0.jar
 log4j-1.2.17.jar
 log4j-core-2.17.0.jar
-netty-all-4.1.100.Final.jar
-netty-buffer-4.1.100.Final.jar
-netty-codec-4.1.100.Final.jar
-netty-codec-dns-4.1.100.Final.jar
-netty-codec-haproxy-4.1.100.Final.jar
-netty-codec-http-4.1.100.Final.jar
-netty-codec-mqtt-4.1.100.Final.jar
-netty-codec-socks-4.1.100.Final.jar
-netty-common-4.1.100.Final.jar
-netty-handler-4.1.100.Final.jar
-netty-handler-proxy-4.1.100.Final.jar
-netty-resolver-4.1.100.Final.jar
-netty-resolver-dns-4.1.100.Final.jar
-netty-transport-4.1.100.Final.jar
-netty-transport-classes-epoll-4.1.100.Final.jar
-netty-transport-classes-kqueue-4.1.100.Final.jar
-netty-transport-native-unix-common-4.1.100.Final.jar
+netty-all-4.1.111.Final.jar
+netty-buffer-4.1.111.Final.jar
+netty-codec-4.1.111.Final.jar
+netty-codec-dns-4.1.111.Final.jar
+netty-codec-haproxy-4.1.111.Final.jar
+netty-codec-http-4.1.111.Final.jar
+netty-codec-mqtt-4.1.111.Final.jar
+netty-codec-socks-4.1.111.Final.jar
+netty-common-4.1.111.Final.jar
+netty-handler-4.1.111.Final.jar
+netty-handler-proxy-4.1.111.Final.jar
+netty-resolver-4.1.111.Final.jar
+netty-resolver-dns-4.1.111.Final.jar
+netty-transport-4.1.111.Final.jar
+netty-transport-classes-epoll-4.1.111.Final.jar
+netty-transport-classes-kqueue-4.1.111.Final.jar
+netty-transport-native-unix-common-4.1.111.Final.jar
 slf4j-api-1.7.25.jar
 slf4j-simple-1.7.25.jar
 ````
@@ -66,13 +66,9 @@ Far more implementation and error handling is required.
 
 ## Known Issues
 
-At least in my testing Mosquitto version 2.0.18 (on Windows platform) does not support
-subscriptions with QOS 0 (AT_MOST_ONCE ) over Websockets from this code. It closes the connection without logging anything.
-Other MQTT clients can subscribe to Mosquitto using QOS0.
-
-However, the same subscription code works on other brokers and QOS1 works as expected on Mosquitto
-
-
+Fixed the issue where Mosquitto used to disconnect because the subscription was malformed.
+This was caused by the fact that the QOS in the MQTT fixed header of a subscribe message must be
+``MqttQoS.AT_LEAST_ONCE`` while the actual desired QOS is specified in the ``MqttTopicSubscription`` object.
 
 
 

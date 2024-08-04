@@ -4,19 +4,31 @@ import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.handler.codec.http.websocketx.*;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 public class MqttWebSocketCodec extends MessageToMessageCodec<WebSocketFrame, ByteBuf> {
+
+    private final String TAG = "MqttWebSocketCodec";
+    private final boolean enableLogging=false;
+
+    private SimpleLogger logger = new SimpleLogger();
+
+    private void log(String data){
+        if (enableLogging){
+            logger.log(data);
+        }
+    }
 
 
     @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        System.out.println("encoding");
+        log("encoding");
         out.add(new BinaryWebSocketFrame(msg.retain()));
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, WebSocketFrame  frame, List<Object> out) throws Exception {
-        System.out.println("decoding");
+        log("decoding");
         if (frame instanceof BinaryWebSocketFrame || frame instanceof ContinuationWebSocketFrame) {
             out.add(frame.content().retain());
         } else if (frame instanceof CloseWebSocketFrame) {

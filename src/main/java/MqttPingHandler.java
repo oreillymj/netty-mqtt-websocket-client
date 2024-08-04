@@ -22,6 +22,17 @@ final class MqttPingHandler extends ChannelInboundHandlerAdapter {
         this.keepaliveSeconds = keepaliveSeconds;
     }
 
+    private final String TAG = "MqttPingHandler";
+    private final boolean enableLogging=false;
+
+    private SimpleLogger logger = new SimpleLogger();
+
+    private void log(String data){
+        if (enableLogging){
+            logger.log(data);
+        }
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (!(msg instanceof MqttMessage)) {
@@ -57,7 +68,7 @@ final class MqttPingHandler extends ChannelInboundHandlerAdapter {
     private void sendPingReq(Channel channel){
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PINGREQ, false, MqttQoS.AT_MOST_ONCE, false, 0);
         channel.writeAndFlush(new MqttMessage(fixedHeader));
-        System.out.println("MqttPingHandler()->sendPingReq()->PINGREQ");
+        log("MqttPingHandler()->sendPingReq()->PINGREQ");
         if(this.pingRespTimeout != null){
             this.pingRespTimeout = channel.eventLoop().schedule(() -> {
                 MqttFixedHeader fixedHeader2 = new MqttFixedHeader(MqttMessageType.DISCONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0);
@@ -68,13 +79,13 @@ final class MqttPingHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void handlePingReq(Channel channel){
-        System.out.println("MqttPingHandler()->handlePingReq()->");
+        log("MqttPingHandler()->handlePingReq()->");
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PINGRESP, false, MqttQoS.AT_MOST_ONCE, false, 0);
         channel.writeAndFlush(new MqttMessage(fixedHeader));
     }
 
     private void handlePingResp(){
-        System.out.println("MqttPingHandler()->handlePingResp()->");
+        log("MqttPingHandler()->handlePingResp()->");
         if(this.pingRespTimeout != null && !this.pingRespTimeout.isCancelled() && !this.pingRespTimeout.isDone()){
             this.pingRespTimeout.cancel(true);
             this.pingRespTimeout = null;

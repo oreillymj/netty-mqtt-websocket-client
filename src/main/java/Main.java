@@ -1,9 +1,20 @@
 public class Main {
+
+    private final static String TAG = "Main";
+    private final static boolean enableLogging=true;
+
+    private static SimpleLogger logger = new SimpleLogger();
+
+    private static void log(String data){
+        if (enableLogging){
+            logger.log(data);
+        }
+    }
     public static void main(String[] args) {
 
         // https://nikoskatsanos.com/blog/2022/01/netty-websocket-ssl/?utm_source=pocket_reader
 
-        System.out.println("Web socket testing");
+        log("WebSocket MQTT client testing");
 
 
         //WebSocketMqttClient cloud_hivemq = new WebSocketMqttClient("ws://broker.hivemq.com:8000/mqtt");
@@ -14,7 +25,7 @@ public class Main {
         //cloud_emqx.start();
 
 
-        MqttWebSocketClient local_mosquitto = new MqttWebSocketClient("ws://localhost:9001/mqtt");
+        MqttWebSocketClient local_mosquitto = new MqttWebSocketClient("ws://localhost:8083/mqtt");
         local_mosquitto.start();
 
     }
