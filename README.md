@@ -4,14 +4,14 @@ A simple MQTT Websocket client written in Java using Netty.
 # Netty Based Websocket MQTT Client
 
 ## Overview
-This is a very simple example of a MQTT client which support connecting to a broker using Websockets.
+This is a very simple example of a MQTT client which supports connecting to a broker using Websockets.
 SSL connections are currently unsupported.
 It is simply provided as a starting point for more complex implementations as I couldn't find amy other working examples.
 
 ## Building/Requirements
-The code is intended to be simply built/run in Intellij. I've also add a Maven POM.xml.
-The code assumes the following files are within a 'libs' folder.
-Not all maybe required, but it will ensure the code builds.
+The code is intended to be simply built/run in Intellij. I've also added a Maven POM.xml to pull dependencies.
+Alternatively, the code requires that the following files are provided within a 'libs' folder.
+Not all may be required, but having them will ensure the code builds.
 
 ````
 bcpkix-jdk15on-156.jar
@@ -55,6 +55,9 @@ Other brokers use port 8083 as the default unsecured port and
 The public EMQX broker configuration is documented [here](https://www.emqx.com/en/mqtt/public-mqtt5-broker)
 
 Mosquitto usually defaults to port 9001 for Websocket connections.
+
+## Assumptions
+The connection assumes that the broker supports MQTT 3.1.1 as the clientid likely exceeds the allowed limits for 3.1
 
 ## Limitations
 The code has not been tested for any sort of MQTTv5 compliance.
