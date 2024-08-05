@@ -25,7 +25,7 @@ public class Main {
         //cloud_emqx.start();
 
 
-        MqttWebSocketClient local_mosquitto = new MqttWebSocketClient("ws://localhost:8083/mqtt");
+        MqttWebSocketClient local_mosquitto = new MqttWebSocketClient("ws://localhost:9001/mqtt");
         local_mosquitto.start();
 
     }
