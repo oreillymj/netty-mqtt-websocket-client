@@ -70,6 +70,20 @@ Far more implementation and error handling is required.
 ## Known Issues
 None 
 
+## Updates
+Added support for connecting to a secure broker port using an SslContext. A helper class constructs the context for the
+public broker.emqx.io using the CA cert they provided. The full cert chain PEM was obtained using this [website](https://whatsmychaincert.com/?broker.emqx.io:8883) 
+and pem is embedded in the SSLUtil helper class to make connecting super easy.
+
+        SSLUtil sslUtil = new SSLUtil();
+        SslContext sslContext =sslUtil.getEMQSslContext();
+        if (sslContext!=null) {
+            MqttWebSocketClient ssl_cloud_emqx = new MqttWebSocketClient("wss://broker.emqx.io:8084/mqtt", sslContext);
+            ssl_cloud_emqx.start();
+        }
+
+
+
 ## Fixed Issues
 Fixed the issue where Mosquitto used to disconnect because the subscription was malformed.
 This was caused by the fact that the QOS in the MQTT fixed header of a subscribe message must be

@@ -69,7 +69,7 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, MqttMessage msg) {
-        log("MqttMessageHandler->channelRead0()->");
+        log("MqttMessageHandler->channelRead0()->start");
         if (msg instanceof MqttMessage) {
             MqttMessageType type =  msg.fixedHeader().messageType();
             log("MqttMessageHandler->channelRead0()->MQTT Message Type=" + type.toString());
@@ -267,18 +267,18 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
     private void handleIncomingPublish(Channel channel, MqttPublishMessage message) {
 
         if (message==null) {return;}
-        log( "MqttMessageHandler()->handleIncomingPublish, q=" + message.fixedHeader().qosLevel().value() + ",msgid=" + message.variableHeader().packetId() );
+        log( "MqttMessageHandler()->handleIncomingPublish()->q=" + message.fixedHeader().qosLevel().value() + ",msgid=" + message.variableHeader().packetId() );
         switch (message.fixedHeader().qosLevel()) {
             case AT_MOST_ONCE:
-                log("QOS 0 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
+                log("MqttMessageHandler()->handleIncomingPublish()->QOS 0 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
                 break;
             case AT_LEAST_ONCE:
-                log("QOS 1 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
+                log("MqttMessageHandler()->handleIncomingPublish()->QOS 1 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
                 //These need a PUBACK
                 break;
 
             case EXACTLY_ONCE:
-                log("QOS 2 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
+                log("MqttMessageHandler()->handleIncomingPublish()->QOS 2 - Got publish on topic - " + message.variableHeader().topicName() + " payload=" +message.payload().toString(StandardCharsets.UTF_8));
                 //These need a PUBACK
                 break;
         }
