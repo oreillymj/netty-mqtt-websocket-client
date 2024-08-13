@@ -1,8 +1,5 @@
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import io.netty.handler.codec.mqtt.*;
 import io.netty.util.CharsetUtil;
@@ -25,6 +22,9 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
 
     private SimpleLogger logger = new SimpleLogger();
 
+    private String username=null;
+    private String password="";
+
     private void log(String data){
         if (enableLogging){
             logger.log(data);
@@ -33,6 +33,11 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
 
     MqttMessageHandler(int keepAlive) {
         this.keepAlive = keepAlive;
+    }
+    MqttMessageHandler(int keepAlive, String username, String password) {
+        this.keepAlive = keepAlive;
+        this.username = username;
+        this.password = password;
     }
 
     @Override
@@ -88,7 +93,9 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
                         sendPublish(ctx.channel(), "test/topic0", "Hello From MQTT Websocket client - QOS0", 0);
                         sendPublish(ctx.channel(), "test/topic1", "Hello From MQTT Websocket client - QOS1", 1);
                     } else {
-                        log("MQTT connection failed: " + connAck.variableHeader().connectReturnCode());
+                        log("MqttMessageHandler->channelRead0()->MQTT connection failed: " + connAck.variableHeader().connectReturnCode());
+                        ctx.close();
+
                     }
                     break;
                 case PUBACK:
@@ -140,11 +147,19 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
                 false,
                 0);
 
+        boolean hasUsername=false;
+        boolean hasPassword=false;
+        if (username!=null){
+            hasUsername=true;
+        }
+        if ((password!=null) && (password!="")){
+            hasPassword=true;
+        }
         MqttConnectVariableHeader mqttConnectVariableHeader = new MqttConnectVariableHeader(
                 "MQTT",
                 4,
-                false,
-                false,
+                hasUsername,
+                hasPassword,
                 false,
                 0,
                 false,
@@ -155,8 +170,8 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
                 clientid,
                 null,
                 null,
-                null,
-                "".getBytes());
+                username,
+                password.getBytes());
 
         MqttConnectMessage mqttConnectMessage = new MqttConnectMessage(
                 mqttFixedHeader,

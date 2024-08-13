@@ -24,6 +24,9 @@ public final class MqttWebSocketClient {
     final String subprotocol ="mqtt";
     final int keepAlive=60;
 
+    private String username=null;
+    private String password="";
+
     private final String TAG = "MqttWebSocketClient";
     private final boolean enableLogging=true;
 
@@ -44,9 +47,29 @@ public final class MqttWebSocketClient {
         this.URL=url;
     }
 
+    public MqttWebSocketClient(String url,String username, String password){
+        this.URL=url;
+        this.username=username;
+        this.password=password;
+    }
+
     public MqttWebSocketClient(String url, SslContext sslContext){
         this.URL=url;
         this.sslContext=sslContext;
+    }
+
+    public MqttWebSocketClient(String url, SslContext sslContext, String username, String password){
+        this.URL=url;
+        this.sslContext=sslContext;
+        this.username=username;
+        this.password=password;
+    }
+
+    public void setUsername(String username){
+        this.username=username;
+    }
+    public void setPassword(String password){
+        this.password=password;
     }
 
     public  void start()  {
@@ -56,8 +79,8 @@ public final class MqttWebSocketClient {
         URI uri;
 
 
-        EventLoopGroup group = null;
-        //NioEventLoopGroup group = null;
+
+        NioEventLoopGroup group = null;
 
         String parseURL =  parseURL(URL);
 
@@ -122,7 +145,11 @@ public final class MqttWebSocketClient {
                             p.addLast("idleStateHandler", new IdleStateHandler(keepAlive, keepAlive, 0, TimeUnit.SECONDS));
                             p.addLast("mqttPingHandler", new MqttPingHandler(keepAlive));
                             p.addLast(new HttpResponseHandler());
-                            p.addLast(new MqttMessageHandler(keepAlive));
+                            if( (username!=null) && (password!=null) ){
+                                p.addLast(new MqttMessageHandler(keepAlive,username,password));
+                            }else {
+                                p.addLast(new MqttMessageHandler(keepAlive));
+                            }
                         }
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -143,6 +170,7 @@ public final class MqttWebSocketClient {
             return;
         } finally {
             if (group!=null) {
+                log("Shutting down EventLoop");
                 group.shutdownGracefully();
             }
         }
