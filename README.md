@@ -68,7 +68,10 @@ Far more implementation and error handling is required.
 
 
 ## Known Issues
-None 
+Connection to ```ws://broker.emqx.io:8083/mqtt``` fails when using SOCKS5 proxy. This may be down to my environment. SSL connections function.
+Please open an issue if this occurs. Otherwise, try using the HTTP proxy.
+
+Socks4 proxy type is untested.
 
 ## Updates
 Added support for connecting to a secure broker port using an SslContext. A helper class constructs the context for the
@@ -90,6 +93,32 @@ local_mosquitto.start();
 ```
 Instructions for setting up Auth in Mosquitto can be found [here](http://www.steves-internet-guide.com/mqtt-username-password-example/)
  - Note - I could only get Mosquitto to start as a Windows service if the password file was in the same directory as the Mosquitto.exe
+
+Added proxy support, configure a ProxyConfig class instance
+```
+        ProxyConfig.ProxyType socks5type = ProxyConfig.ProxyType.SOCKS5;
+        ProxyConfig.ProxyType httptype = ProxyConfig.ProxyType.HTTPPROXY;
+        
+        ProxyConfig socksproxyConfig = new ProxyConfig();
+        socksproxyConfig.setProxyType(socks5type);
+        socksproxyConfig.setProxyHost("socks5proxy.example.com");
+        socksproxyConfig.setProxyPort(1000);
+
+        ProxyConfig httpproxyConfig = new ProxyConfig();
+        httpproxyConfig.setProxyType(httptype);
+        httpproxyConfig.setProxyHost("httpproxy.example.com");
+        httpproxyConfig.setProxyPort(900);
+```
+
+... then pass it to the WebSocket client
+
+````
+MqttWebSocketClient cloud_emqx = new MqttWebSocketClient("ws://broker.emqx.io:8083/mqtt");
+//cloud_emqx.setProxyConfig(socksproxyConfig);
+cloud_emqx.setProxyConfig(httpproxyConfig);
+cloud_emqx.start();
+````
+
 
 ## Fixed Issues
 Fixed the issue where Mosquitto used to disconnect because the subscription was malformed.

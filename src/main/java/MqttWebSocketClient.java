@@ -27,6 +27,8 @@ public final class MqttWebSocketClient {
     private String username=null;
     private String password="";
 
+    private ProxyConfig proxyConfig =null;
+
     private final String TAG = "MqttWebSocketClient";
     private final boolean enableLogging=true;
 
@@ -70,6 +72,10 @@ public final class MqttWebSocketClient {
     }
     public void setPassword(String password){
         this.password=password;
+    }
+
+    public void setProxyConfig(ProxyConfig proxyConfig){
+        this.proxyConfig=proxyConfig;
     }
 
     public  void start()  {
@@ -133,6 +139,9 @@ public final class MqttWebSocketClient {
                                 SslHandler sslHandler = new SslHandler(engine);
                                 sslHandler.setHandshakeTimeoutMillis(60000);
                                 ch.pipeline().addFirst("ssl", sslHandler);
+                            }
+                            if (proxyConfig!=null){
+                                ch.pipeline().addFirst("proxy", proxyConfig.getProxyHandler());
                             }
                             p.addLast(new HttpClientCodec(512, 512, 512));
                             p.addLast(new HttpObjectAggregator(65536));
