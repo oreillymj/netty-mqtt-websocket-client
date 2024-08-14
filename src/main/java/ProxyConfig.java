@@ -20,7 +20,7 @@ public class ProxyConfig {
     private String password=null;
 
     public enum ProxyType {
-        SOCKS5, SOCK4, HTTPPROXY
+        SOCKS5, SOCKS4, HTTPPROXY
     }
 
     private ProxyType proxyType;
@@ -54,7 +54,7 @@ public class ProxyConfig {
     public ProxyHandler getProxyHandler(){
         ProxyHandler retval = null;
         switch (this.proxyType){
-            case SOCK4:
+            case SOCKS4:
                 Socks4ProxyHandler s4proxy = null;
                 if (this.userName != null && this.password != null) {
                     s4proxy = new Socks4ProxyHandler(new InetSocketAddress(this.host, this.port), this.userName);

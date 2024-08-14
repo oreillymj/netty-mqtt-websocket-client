@@ -68,9 +68,6 @@ Far more implementation and error handling is required.
 
 
 ## Known Issues
-Connection to ```ws://broker.emqx.io:8083/mqtt``` fails when using SOCKS5 proxy. This may be down to my environment. SSL connections function.
-Please open an issue if this occurs. Otherwise, try using the HTTP proxy.
-
 Socks4 proxy type is untested.
 
 ## Updates
@@ -94,7 +91,8 @@ local_mosquitto.start();
 Instructions for setting up Auth in Mosquitto can be found [here](http://www.steves-internet-guide.com/mqtt-username-password-example/)
  - Note - I could only get Mosquitto to start as a Windows service if the password file was in the same directory as the Mosquitto.exe
 
-Added proxy support, configure a ProxyConfig class instance
+Added proxy support, tested with danted on Ubuntu
+Configure a ProxyConfig class instance as follows...
 ```
         ProxyConfig.ProxyType socks5type = ProxyConfig.ProxyType.SOCKS5;
         ProxyConfig.ProxyType httptype = ProxyConfig.ProxyType.HTTPPROXY;
