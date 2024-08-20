@@ -22,13 +22,13 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
         log("HttpResponseHandler->channelRead0()->");
-        if (msg.status().code() != HTTP_SWITCHING_PROTOCOLS) { // 101 Switching Protocols is expected for WebSocket upgrade
+        if (msg.status().code() == HTTP_SWITCHING_PROTOCOLS) { // 101 Switching Protocols is expected for WebSocket upgrade
+            // If it's a 101 Switching Protocols response, we just let it pass through
+            ctx.fireChannelRead(msg.retain());
+        } else {
             throw new IllegalStateException(
                     "Unexpected FullHttpResponse (status=" + msg.status() +
                             ", content=" + msg.content().toString(CharsetUtil.UTF_8) + ')');
-        } else {
-            // If it's a 101 Switching Protocols response, we just let it pass through
-            ctx.fireChannelRead(msg.retain());
         }
     }
 
