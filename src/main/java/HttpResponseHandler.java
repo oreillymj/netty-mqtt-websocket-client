@@ -10,6 +10,8 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
     private final String TAG = "HttpResponseHandler";
     private final boolean enableLogging=false;
 
+    private final int HTTP_SWITCHING_PROTOCOLS=101; // Missing from https://docs.oracle.com/javase/6/docs/api/java/net/HttpURLConnection.html
+
     private SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
@@ -20,7 +22,7 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
         log("HttpResponseHandler->channelRead0()->");
-        if (msg.status().code() != 101) { // 101 Switching Protocols is expected for WebSocket upgrade
+        if (msg.status().code() != HTTP_SWITCHING_PROTOCOLS) { // 101 Switching Protocols is expected for WebSocket upgrade
             throw new IllegalStateException(
                     "Unexpected FullHttpResponse (status=" + msg.status() +
                             ", content=" + msg.content().toString(CharsetUtil.UTF_8) + ')');
