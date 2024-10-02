@@ -103,6 +103,8 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
                     break;
                 case SUBACK:
                     log("MqttMessageHandler->channelRead0()->MQTT SUBACK received");
+                    MqttSubAckMessage subAck = (MqttSubAckMessage) msg;
+                    handleSubAck(ctx.channel(), subAck);
                     break;
                 case PUBREC:
                     log("MqttMessageHandler->channelRead0()->MQTT PUBREC received");
@@ -252,11 +254,15 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
                 MqttMessageType.SUBSCRIBE, // Message Type
                 false, // DUP flag
-                MqttQoS.AT_LEAST_ONCE, // Quality of Service Level
+                MqttQoS.AT_LEAST_ONCE, // Quality of Service Level must 1 as per spec - https://stanford-clark.com/MQTT/#subscribe / http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718064
+
                 false, // Retain
                 0); // Remaining Length
         // Create a new MqttMessageIdVariableHeader
+
         MqttMessageIdVariableHeader mqttMessageIdVariableHeader = getNewMessageId();
+
+
         // Create a new MqttSubscribePayload
         MqttTopicSubscription mqttTopicSubscription = new MqttTopicSubscription(
                 utf_topic, // Topic to subscribe
@@ -271,10 +277,15 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
         // Print out the MqttSubscribeMessage
 
         if (ctx.channel().isActive()) {
-            log("Subscribing on topic - " + topic);
+            log("Subscribing on topic - " + topic + " with messageid - " + mqttMessageIdVariableHeader.messageId());
             ctx.writeAndFlush(mqttSubscribeMessage);
         }
 
+    }
+
+    private void handleSubAck(Channel channel, MqttSubAckMessage message){
+        if (message==null) {return;}
+        log( "MqttMessageHandler()->handleSubAck()->q=" + message.payload().grantedQoSLevels() + ",msgid=" + message.variableHeader().messageId() );
     }
 
 

@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakeException;
 import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import io.netty.util.CharsetUtil;
 
+
 public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpResponse> {
 
     private final String TAG = "HttpResponseHandler";
@@ -24,6 +25,7 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
         log("HttpResponseHandler->channelRead0()->");
         if (msg.status().code() == HTTP_SWITCHING_PROTOCOLS) { // 101 Switching Protocols is expected for WebSocket upgrade
             // If it's a 101 Switching Protocols response, we just let it pass through
+
             ctx.fireChannelRead(msg.retain());
         } else {
             throw new IllegalStateException(
