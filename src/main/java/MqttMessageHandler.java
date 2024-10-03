@@ -6,10 +6,16 @@ import io.netty.util.CharsetUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage> {
+
+    Map<Integer, ScheduledFuture> syncMap = Collections.synchronizedMap(new HashMap<>());
 
     private int keepAlive=60;
 
@@ -90,30 +96,46 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
 
                         subscribe(ctx, "test/topic0", 0);
                         subscribe(ctx, "test/topic1", 1);
-                        sendPublish(ctx.channel(), "test/topic0", "Hello From MQTT Websocket client - QOS0", 0);
-                        sendPublish(ctx.channel(), "test/topic1", "Hello From MQTT Websocket client - QOS1", 1);
+                        subscribe(ctx, "test/topic2", 2);
+                        sendPublish(ctx, "test/topic0", "Hello From MQTT Websocket client - QOS0", 0, false);
+                        sendPublish(ctx, "test/topic1", "Hello From MQTT Websocket client - QOS1", 1, false);
+                        sendPublish(ctx, "test/topic2", "Hello From MQTT Websocket client - QOS1", 2, false);
+                        unsubscribe(ctx, "test/topic0", 0);
                     } else {
                         log("MqttMessageHandler->channelRead0()->MQTT connection failed: " + connAck.variableHeader().connectReturnCode());
                         ctx.close();
 
                     }
                     break;
-                case PUBACK:
-                    log("MqttMessageHandler->channelRead0()->MQTT PUBACK received");
-                    break;
                 case SUBACK:
                     log("MqttMessageHandler->channelRead0()->MQTT SUBACK received");
                     MqttSubAckMessage subAck = (MqttSubAckMessage) msg;
-                    handleSubAck(ctx.channel(), subAck);
+                    handleSubAck(subAck);
+                    break;
+                case UNSUBACK:
+                    log("MqttMessageHandler->channelRead0()->MQTT UNSUBACK received");
+                    MqttUnsubAckMessage unsubAck = (MqttUnsubAckMessage) msg;
+                    handleUnSubAck(unsubAck);
+                    break;
+                case PUBACK:
+                    log("MqttMessageHandler->channelRead0()->MQTT PUBACK received");
+                    MqttPubAckMessage pubAck = (MqttPubAckMessage) msg;
+                    handlePubAck(pubAck);
                     break;
                 case PUBREC:
                     log("MqttMessageHandler->channelRead0()->MQTT PUBREC received");
+                    MqttPubAckMessage pubrec =  new MqttPubAckMessage(msg.fixedHeader(), (MqttMessageIdVariableHeader) msg.variableHeader());
+                    handlePubRec(ctx, pubrec);
                     break;
                 case PUBREL:
                     log("MqttMessageHandler->channelRead0()->MQTT PUBREL received");
+                    MqttPubAckMessage pubrel = (MqttPubAckMessage) msg;
+                    //handlePubRel(ctx, pubrel);
                     break;
                 case PUBCOMP:
                     log("MqttMessageHandler->channelRead0()->MQTT PUBCOMP received");
+                    MqttPubAckMessage pubcomp = new MqttPubAckMessage(msg.fixedHeader(), (MqttMessageIdVariableHeader) msg.variableHeader());
+                    handlePubComp(ctx, pubcomp);
                     break;
                 case DISCONNECT:
                     log("MqttMessageHandler->channelRead0()->MQTT DISCONNECT received");
@@ -183,9 +205,12 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
         channel.writeAndFlush(mqttConnectMessage);
     }
 
-    private void sendPublish(Channel channel, String topic, String payload, int qos){
+    private void sendPublish(ChannelHandlerContext ctx, String topic, String payload, int qos, boolean retain){
+        sendPublish(ctx, topic, payload, qos, retain, false, 0);
+    }
+    private void sendPublish(ChannelHandlerContext ctx, String topic, String payload, int qos, boolean retain, boolean dup, int msgid){
         // Publish a message to 'test/topic'
-        log("MqttMessageHandler->publish()->sending a test publish");
+        //log("MqttMessageHandler->publish()->sending a test publish");
         // Create MQTT PUBLISH message
 
         MqttQoS  mqttqos= MqttQoS.AT_MOST_ONCE;
@@ -204,31 +229,143 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
                 break;
         }
 
+        if (qos==0){
+            dup=false;
+        }
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
                 MqttMessageType.PUBLISH,
-                false,
+                dup,
                 mqttqos,
-                false,
+                retain,
                 0);
 
         MqttPublishVariableHeader mqttPublishVariableHeader = new MqttPublishVariableHeader(
                 topic,
-                getNewMessageId().messageId());
-
-        ByteBuf msgPayload = channel.alloc().buffer();
+                getMessageId(msgid).messageId());
+        msgid = mqttPublishVariableHeader.packetId();
+        int finalmsgid=msgid;
+        log("MqttMessageHandler->publish()->sending a test publish to topic - " + topic + " with messageid - " + finalmsgid);
+        ByteBuf msgPayload = ctx.channel().alloc().buffer();
         msgPayload.writeBytes(payload.getBytes(CharsetUtil.UTF_8));
 
         MqttPublishMessage mqttPublishMessage = new MqttPublishMessage(
                 mqttFixedHeader,
                 mqttPublishVariableHeader,
                 msgPayload);
+        if (ctx.channel().isActive()) {
+            ctx.channel().writeAndFlush(mqttPublishMessage);
+            if (qos ==1) {
+                ScheduledFuture<?> pubAckFuture = ctx.channel().eventLoop().schedule(()->{
+                    pubAckTimeoutReached(ctx, topic,payload,qos, retain, finalmsgid);
+                }, 10, TimeUnit.SECONDS); //schedule a resend if a subAck is not received.
+                syncMap.put(finalmsgid, pubAckFuture); //keep track of multiple futures in a concurrent Hashmap
+            }
+            if (qos ==2) {
+                ScheduledFuture<?> pubRecFuture = ctx.channel().eventLoop().schedule(()->{
+                    pubRecTimeoutReached(ctx, topic,payload,qos, retain, finalmsgid);
+                }, 10, TimeUnit.SECONDS); //schedule a resend if a subAck is not received.
+                syncMap.put(finalmsgid, pubRecFuture); //keep track of multiple futures in a concurrent Hashmap
+            }
+        }
+    }
 
-        channel.writeAndFlush(mqttPublishMessage);
+    private void handlePubAck(MqttPubAckMessage message){
+        if (message==null) {return;}
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handlePubAck()->q=" + message.fixedHeader().qosLevel() + ",msgid=" + msgId );
+        ScheduledFuture<?> pubackFuture = syncMap.get(msgId);
+        //ScheduledFuture subackFuture = syncMap.get(1); //testing
+        if (pubackFuture!=null){
+            pubackFuture.cancel(true);
+            log( "MqttMessageHandler()->handlePubAck()->removed scheduledFuture for publish msgid " + msgId);
+            syncMap.remove(msgId);
+        }
+    }
+
+    private void handlePubRec(ChannelHandlerContext ctx, MqttPubAckMessage message){
+        if (message==null) {return;}
+        //cancel the pubrec future
+        //send the pubrel message
+        //schedule a future to wait for a pubcomp
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handlePubRec()->q=" + message.fixedHeader().qosLevel() + ",msgid=" + msgId );
+
+        ScheduledFuture<?> pubrecFuture = syncMap.get(msgId);
+        if (pubrecFuture!=null){
+            pubrecFuture.cancel(true);
+            log( "MqttMessageHandler()->handlePubRec()->removed scheduledFuture for publish msgid " + msgId);
+            syncMap.remove(msgId);
+            MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREL, false, MqttQoS.AT_LEAST_ONCE, false, 0);
+            MqttMessage mqttPubRelMessage = new MqttMessage(
+                    mqttFixedHeader,
+                    message.variableHeader(),
+                    message.payload());
+            if (ctx.channel().isActive()) {
+                ctx.channel().writeAndFlush(mqttPubRelMessage);
+                log( "MqttMessageHandler()->handlePubRec()->sent PubRel");
+                ScheduledFuture<?> pubCompFuture = ctx.channel().eventLoop().schedule(()->{
+                    pubCompTimeoutReached(ctx, msgId);
+                }, 10, TimeUnit.SECONDS); //schedule a resend if a subAck is not received.
+                syncMap.put(msgId, pubCompFuture); //keep track of multiple futures in a concurrent Hashmap
+            }
+        }
+    }
+
+    private void handlePubRel(ChannelHandlerContext ctx, MqttPubAckMessage message){
+        if (message==null) {return;}
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handlePubRel()->q=" + message.fixedHeader().qosLevel() + ",msgid=" + msgId );
+
+        ScheduledFuture<?> pubackFuture = syncMap.get(msgId);
+        //ScheduledFuture subackFuture = syncMap.get(1); //testing
+        if (pubackFuture!=null){
+            pubackFuture.cancel(true);
+            log( "MqttMessageHandler()->handlePubRel()->removed scheduledFuture for publish msgid " + msgId);
+            syncMap.remove(msgId);
+        }
+    }
+
+    private void handlePubComp(ChannelHandlerContext ctx, MqttPubAckMessage message){
+        if (message==null) {return;}
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handlePubComp()->q=" + message.fixedHeader().qosLevel() + ",msgid=" + msgId );
+
+        ScheduledFuture<?> pubRelFuture = syncMap.get(msgId);
+        //ScheduledFuture subackFuture = syncMap.get(1); //testing
+        if (pubRelFuture!=null){
+            pubRelFuture.cancel(true);
+            log( "MqttMessageHandler()->handlePubComp()->removed scheduledFuture for publish msgid " + msgId);
+            syncMap.remove(msgId);
+        }
+    }
+
+    private void pubAckTimeoutReached(ChannelHandlerContext ctx, String topic, String payload, int qos, boolean retain, int msgId){
+        log( "MqttMessageHandler()->pubAckTimeoutReached()->msgid=" + msgId);
+        syncMap.remove(msgId); //remove the old ScheduledFuture reference from the Hashmap
+        //Resend the publish message if no puback received.
+        sendPublish(ctx,topic, payload,qos, retain,true, msgId);
     }
 
 
 
+    private void pubRecTimeoutReached(ChannelHandlerContext ctx, String topic, String payload, int qos, boolean retain, int msgId){
+        log( "MqttMessageHandler()->pubRecTimeoutReached()->msgid=" + msgId);
+        syncMap.remove(msgId); //remove the old ScheduledFuture reference from the Hashmap
+        sendPublish(ctx,topic,payload,qos,retain,true,msgId);
+    }
+
+    private void pubCompTimeoutReached(ChannelHandlerContext ctx, int msgId){
+        log( "MqttMessageHandler()->pubCompTimeoutReached()->msgid=" + msgId);
+        //TODO - What is the correct behaviour if this occurs? -- https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718058
+        //syncMap.remove(msgId); //remove the old ScheduledFuture reference from the Hashmap
+        //sendPublish(ctx,topic,payload,qos,retain,true,msgId);
+    }
+
+
     private void subscribe(ChannelHandlerContext ctx, String topic, int qos){
+        subscribe(ctx, topic, qos, false,0);
+    }
+    private void subscribe(ChannelHandlerContext ctx, String topic, int qos, boolean dup, int msgid){
 
         byte topic_array[] = topic.getBytes(CharsetUtil.UTF_8);
         String utf_topic = new String(topic_array);
@@ -253,14 +390,15 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
         // Create a new MqttFixedHeader
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
                 MqttMessageType.SUBSCRIBE, // Message Type
-                false, // DUP flag
+                dup, // DUP flag
                 MqttQoS.AT_LEAST_ONCE, // Quality of Service Level must 1 as per spec - https://stanford-clark.com/MQTT/#subscribe / http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718064
 
                 false, // Retain
                 0); // Remaining Length
         // Create a new MqttMessageIdVariableHeader
 
-        MqttMessageIdVariableHeader mqttMessageIdVariableHeader = getNewMessageId();
+        MqttMessageIdVariableHeader mqttMessageIdVariableHeader = getMessageId(msgid);
+        int finalmsgid = mqttMessageIdVariableHeader.messageId();
 
 
         // Create a new MqttSubscribePayload
@@ -277,15 +415,74 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
         // Print out the MqttSubscribeMessage
 
         if (ctx.channel().isActive()) {
-            log("Subscribing on topic - " + topic + " with messageid - " + mqttMessageIdVariableHeader.messageId());
-            ctx.writeAndFlush(mqttSubscribeMessage);
+            log("Subscribing on topic - " + topic + " with messageid - " + finalmsgid);
+            ChannelFuture subscribeFuture  = ctx.writeAndFlush(mqttSubscribeMessage);
+            ScheduledFuture<?> subAckFuture = ctx.channel().eventLoop().schedule(()->{
+                subAckTimeoutReached(ctx, topic,qos, finalmsgid);
+            }, 10, TimeUnit.SECONDS); //schedule a resend if a subAck is not received.
+            syncMap.put(finalmsgid, subAckFuture); //keep track of multiple futures in a concurrent Hashmap
         }
 
     }
 
-    private void handleSubAck(Channel channel, MqttSubAckMessage message){
+    private void handleSubAck(MqttSubAckMessage message){
         if (message==null) {return;}
-        log( "MqttMessageHandler()->handleSubAck()->q=" + message.payload().grantedQoSLevels() + ",msgid=" + message.variableHeader().messageId() );
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handleSubAck()->q=" + message.payload().grantedQoSLevels() + ",msgid=" + msgId );
+        ScheduledFuture<?> subackFuture = syncMap.get(msgId);
+        //ScheduledFuture subackFuture = syncMap.get(1); //testing
+        if (subackFuture!=null){
+            subackFuture.cancel(true);
+            log( "MqttMessageHandler()->handleSubAck()->removed scheduledFuture for subscribe msgid " + msgId);
+            syncMap.remove(msgId);
+        }
+    }
+
+    private void subAckTimeoutReached(ChannelHandlerContext ctx, String topic, int qos,  int msgId){
+        log( "MqttMessageHandler()->subAckTimeoutReached()->msgid=" + msgId);
+        syncMap.remove(msgId); //remove the old ScheduledFuture reference from the Hashmap
+        //Resend the subscribe message if no suback received.
+        subscribe(ctx,topic,qos,true, msgId);
+    }
+
+    private void unsubscribe(ChannelHandlerContext ctx, String topic, int qos){
+        unsubscribe(ctx, topic, qos, false,0);
+    }
+    private void unsubscribe(ChannelHandlerContext ctx, String topic, int qos, boolean dup, int msgid){
+        MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.UNSUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0);
+        MqttMessageIdVariableHeader variableHeader = getMessageId(msgid);
+        MqttUnsubscribePayload payload = new MqttUnsubscribePayload(Collections.singletonList(topic));
+        MqttUnsubscribeMessage mqttUnSubscribeMessage = new MqttUnsubscribeMessage(fixedHeader, variableHeader, payload);
+        int finalmsgid = variableHeader.messageId();
+        if (ctx.channel().isActive()) {
+            log("UnSubscribing on topic - " + topic + " with messageid - " + finalmsgid);
+            ChannelFuture subscribeFuture  = ctx.writeAndFlush(mqttUnSubscribeMessage);
+            ScheduledFuture<?> unSubAckFuture = ctx.channel().eventLoop().schedule(()->{
+                unSubAckTimeoutReached(ctx, topic,qos, finalmsgid);
+            }, 10, TimeUnit.SECONDS); //schedule a resend if a subAck is not received.
+            syncMap.put(finalmsgid, unSubAckFuture); //keep track of multiple futures in a concurrent Hashmap
+        }
+
+    }
+
+    private void handleUnSubAck(MqttUnsubAckMessage message){
+        if (message==null) {return;}
+        int msgId = message.variableHeader().messageId();
+        log( "MqttMessageHandler()->handleUnSubAck()->msgid=" + msgId );
+        ScheduledFuture<?> unSubackFuture = syncMap.get(msgId);
+        //ScheduledFuture subackFuture = syncMap.get(1); //testing
+        if (unSubackFuture!=null){
+            unSubackFuture.cancel(true);
+            log( "MqttMessageHandler()->handleUnSubAck()->removed scheduledFuture for unsubscribe msgid " + msgId);
+            syncMap.remove(msgId);
+        }
+    }
+
+    private void unSubAckTimeoutReached(ChannelHandlerContext ctx, String topic, int qos,  int msgId){
+        log( "MqttMessageHandler()->unSubAckTimeoutReached()->msgid=" + msgId);
+        syncMap.remove(msgId); //remove the old ScheduledFuture reference from the Hashmap
+        //Resend the subscribe message if no suback received.
+        unsubscribe(ctx,topic,qos,true, msgId);
     }
 
 
@@ -311,9 +508,23 @@ public class MqttMessageHandler extends SimpleChannelInboundHandler<MqttMessage>
     }
 
 
-    private MqttMessageIdVariableHeader getNewMessageId() {
+    private void showMapinfo(){
+        log( "MqttMessageHandler()->showMapinfo()->syncMap.size " + syncMap.size());
+        log( "MqttMessageHandler()->showMapinfo()->syncMap.keySet " + syncMap.keySet());
+    }
+
+    private synchronized MqttMessageIdVariableHeader getNewMessageId() {
         this.nextMessageId.compareAndSet(0xffff, 1);
         return MqttMessageIdVariableHeader.from(this.nextMessageId.getAndIncrement());
     }
 
+
+    private synchronized MqttMessageIdVariableHeader getMessageId(int msgid) {
+        if (msgid==0) {
+            this.nextMessageId.compareAndSet(0xffff, 1);
+            return MqttMessageIdVariableHeader.from(this.nextMessageId.getAndIncrement());
+        }else{
+            return MqttMessageIdVariableHeader.from(msgid);
+        }
+    }
 }

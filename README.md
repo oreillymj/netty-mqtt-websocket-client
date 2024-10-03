@@ -71,6 +71,9 @@ Far more implementation and error handling is required.
 Socks4 proxy type is untested.
 
 ## Updates
+
+Added handling for MQTT broker response messages (SUBACK,UNSUBACK,PUBACK,PUBREC,PUBCOMP). The expected behaviour when some of these messages are not received is unclear from the spec. 
+
 Added support for connecting to a secure broker port using an SslContext. A helper class constructs the context for the
 public broker.emqx.io using the CA cert they provided. The full cert chain PEM was obtained using this [website](https://whatsmychaincert.com/?broker.emqx.io:8883) 
 and pem is embedded in the SSLUtil helper class to make connecting super easy.

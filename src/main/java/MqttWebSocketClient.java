@@ -32,6 +32,9 @@ public final class MqttWebSocketClient {
     private final String TAG = "MqttWebSocketClient";
     private final boolean enableLogging=true;
 
+    private NioEventLoopGroup group = null;
+    private ChannelFuture channelFuture=null;
+
     private SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
@@ -86,7 +89,7 @@ public final class MqttWebSocketClient {
 
 
 
-        NioEventLoopGroup group = null;
+
 
         String parseURL =  parseURL(URL);
 
@@ -168,9 +171,9 @@ public final class MqttWebSocketClient {
                     });
             log("Connecting to " + host + ":" + port);
             synchronized (bootstrap) {
-                ChannelFuture fut = bootstrap.connect(host, port);
-                Channel ch = fut.channel();
-                fut.await();
+                channelFuture = bootstrap.connect(host, port);
+                Channel ch = channelFuture.channel();
+                channelFuture.await();
                 ch.closeFuture().sync();
             }
         }catch(InterruptedException IE){
@@ -181,9 +184,22 @@ public final class MqttWebSocketClient {
             if (group!=null) {
                 log("Shutting down EventLoop");
                 group.shutdownGracefully();
+                group=null;
             }
         }
     }//start
+
+    public void disConnect(){
+        log(TAG + "->disconnecting");
+        if( (channelFuture.channel() != null)  && (channelFuture.channel().isActive()) ){
+            MqttMessage message = new MqttMessage(new MqttFixedHeader(MqttMessageType.DISCONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0));
+            channelFuture.channel().writeAndFlush(message).addListener(future -> channelFuture.channel().close());
+            if (group!=null) {
+                log("Shutting down EventLoop");
+                group.shutdownGracefully();
+            }
+        }
+    }
 
 
     private String parseURL(String url){
