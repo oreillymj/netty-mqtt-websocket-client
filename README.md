@@ -94,7 +94,7 @@ local_mosquitto.start();
 Instructions for setting up Auth in Mosquitto can be found [here](http://www.steves-internet-guide.com/mqtt-username-password-example/)
  - Note - I could only get Mosquitto to start as a Windows service if the password file was in the same directory as the Mosquitto.exe
 
-Added proxy support, tested with danted on Ubuntu
+Added proxy support, tested with [danted](https://www.inet.no/dante/) on Ubuntu.
 Configure a ProxyConfig class instance as follows...
 ```
         ProxyConfig.ProxyType socks5type = ProxyConfig.ProxyType.SOCKS5;
