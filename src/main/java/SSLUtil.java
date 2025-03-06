@@ -117,7 +117,7 @@ public class SSLUtil {
     private final String TAG = "SSLUtil";
     private final boolean enableLogging=false;
 
-    private SimpleLogger logger = new SimpleLogger();
+    private final SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
         if (enableLogging){
@@ -154,7 +154,7 @@ public class SSLUtil {
                 // Create certificate
                 Certificate certificate = CertificateFactory.getInstance("X.509")
                         .generateCertificate(pemStream);
-                keyStore.setCertificateEntry("cert" + Integer.toString(i), certificate);
+                keyStore.setCertificateEntry("cert" + i, certificate);
             }
 
 

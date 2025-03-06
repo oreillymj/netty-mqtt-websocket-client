@@ -10,7 +10,7 @@ public class ProxyConfig {
     private final String TAG = "ProxyConfig";
     private final boolean enableLogging=true;
 
-    private SimpleLogger logger = new SimpleLogger();
+    private final SimpleLogger logger = new SimpleLogger();
 
 
 
@@ -45,6 +45,10 @@ public class ProxyConfig {
         this.proxyType=proxyType;
     }
 
+    public String getProxy(){
+        return this.host + ":" + this.port;
+    }
+
     private void log(String data){
         if (enableLogging){
             logger.log(data);
@@ -61,7 +65,7 @@ public class ProxyConfig {
                 } else {
                     s4proxy = new Socks4ProxyHandler(new InetSocketAddress(this.host, this.port));
                 }
-                retval = (ProxyHandler) s4proxy;
+                retval = s4proxy;
                 break;
             case SOCKS5:
                 Socks5ProxyHandler s5proxy = null;
@@ -72,7 +76,7 @@ public class ProxyConfig {
                     s5proxy = new Socks5ProxyHandler(new InetSocketAddress(this.host, this.port));
                     log("Creating Socks5 proxy Handler without username/password");
                 }
-                retval = (ProxyHandler) s5proxy;
+                retval = s5proxy;
                 break;
             case HTTPPROXY:
                 HttpProxyHandler httpproxy = null;
@@ -81,7 +85,7 @@ public class ProxyConfig {
                 } else {
                     httpproxy = new HttpProxyHandler(new InetSocketAddress(this.host, this.port));
                 }
-                retval = (ProxyHandler) httpproxy;
+                retval = httpproxy;
                 break;
         }
         return retval;

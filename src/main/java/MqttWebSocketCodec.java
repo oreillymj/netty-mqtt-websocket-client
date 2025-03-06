@@ -11,7 +11,7 @@ public class MqttWebSocketCodec extends MessageToMessageCodec<WebSocketFrame, By
     private final String TAG = "MqttWebSocketCodec";
     private final boolean enableLogging=false;
 
-    private SimpleLogger logger = new SimpleLogger();
+    private final SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
         if (enableLogging){

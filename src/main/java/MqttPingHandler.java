@@ -25,7 +25,7 @@ final class MqttPingHandler extends ChannelInboundHandlerAdapter {
     private final String TAG = "MqttPingHandler";
     private final boolean enableLogging=false;
 
-    private SimpleLogger logger = new SimpleLogger();
+    private final SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
         if (enableLogging){

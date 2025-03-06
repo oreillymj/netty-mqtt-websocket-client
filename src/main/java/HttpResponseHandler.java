@@ -13,7 +13,7 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
 
     private final int HTTP_SWITCHING_PROTOCOLS=101; // Missing from https://docs.oracle.com/javase/6/docs/api/java/net/HttpURLConnection.html
 
-    private SimpleLogger logger = new SimpleLogger();
+    private final SimpleLogger logger = new SimpleLogger();
 
     private void log(String data){
         if (enableLogging){
